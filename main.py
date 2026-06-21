@@ -27,6 +27,7 @@ DATASET_DIR = PROJECT_ROOT / "dataset"
 RESULTS_DIR = PROJECT_ROOT / "results_all_in_one"
 EPOCHS = 100
 BATCH_SIZE = 16
+BASE_FILTERS = 32
 LR = 1e-4
 
 def env_bool(name: str, default: bool) -> bool:
@@ -60,6 +61,7 @@ SEED = env_int("SEED", SEED)
 GENERATION_WORKERS = env_int("GENERATION_WORKERS", GENERATION_WORKERS)
 EPOCHS = env_int("EPOCHS", EPOCHS)
 BATCH_SIZE = env_int("BATCH_SIZE", BATCH_SIZE)
+BASE_FILTERS = env_int("BASE_FILTERS", BASE_FILTERS)
 LR = env_float("LR", LR)
 
 DATASET_DIR = env_path("DATASET_DIR", DATASET_DIR)
@@ -113,6 +115,7 @@ def main():
             "--output-dir", str(RESULTS_DIR),
             "--epochs", str(EPOCHS),
             "--batch-size", str(BATCH_SIZE),
+            "--base-filters", str(BASE_FILTERS),
             "--lr", str(LR)
         ], "Step 5: Train all-in-one model")
 
@@ -126,6 +129,7 @@ def main():
                         "--dataset-dir", str(DATASET_DIR),
                         "--weights", str(weights_path),
                         "--output-dir", str(RESULTS_DIR),
+                        "--base-filters", str(BASE_FILTERS),
                         "--split", split
                     ], f"Step 6: Evaluate all-in-one model on {split}")
         else:

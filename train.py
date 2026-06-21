@@ -34,6 +34,7 @@ def train():
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--lr", type=float, default=1e-4)
+    parser.add_argument("--base-filters", type=int, default=32)
     parser.add_argument("--output-dir", type=str, default="results_all_in_one")
     args = parser.parse_args()
 
@@ -46,7 +47,7 @@ def train():
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False, num_workers=4, pin_memory=True)
 
-    model = UNet(in_channels=1, out_channels=3, base_filters=32).to(device)
+    model = UNet(in_channels=1, out_channels=3, base_filters=args.base_filters).to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     os.makedirs(args.output_dir, exist_ok=True)

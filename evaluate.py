@@ -20,6 +20,7 @@ def evaluate():
     parser.add_argument("--dataset-dir", type=str, required=True)
     parser.add_argument("--weights", type=str, required=True)
     parser.add_argument("--split", type=str, default="test")
+    parser.add_argument("--base-filters", type=int, default=32)
     parser.add_argument("--output-dir", type=str, default="results_all_in_one")
     args = parser.parse_args()
 
@@ -28,7 +29,7 @@ def evaluate():
 
     test_ds = ChromosomeDataset(Path(args.dataset_dir) / args.split, augment=False)
     
-    model = UNet(in_channels=1, out_channels=3, base_filters=32).to(device)
+    model = UNet(in_channels=1, out_channels=3, base_filters=args.base_filters).to(device)
     model.load_state_dict(torch.load(args.weights, map_location=device))
     model.eval()
 
