@@ -1,4 +1,4 @@
-﻿import os
+import os
 import argparse
 from pathlib import Path
 import torch
@@ -23,6 +23,7 @@ def evaluate_accuracy():
     parser.add_argument("--split", type=str, default="test")
     parser.add_argument("--threshold", type=float, default=0.90, help="IoU threshold to mark an image as correct")
     parser.add_argument("--base-filters", type=int, default=32, help="Set to 64 if evaluating Teacher, 32 for Student")
+    parser.add_argument("--save-vis", action="store_true", help="Save visualization images of predictions")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -70,6 +71,41 @@ def evaluate_accuracy():
             
             if best_score >= args.threshold:
                 correct_count += 1
+                
+            if args.save_vis and idx < 50:
+                try:
+                    import matplotlib.pyplot as plt
+                    vis_dir = os.path.join(args.dataset_dir, "..", f"vis_{args.split}")
+                    os.makedirs(vis_dir, exist_ok=True)
+                    
+                    fig, axes = plt.subplots(1, 5, figsize=(20, 4))
+                    axes[0].imshow(img_t[0].cpu().numpy(), cmap="gray")
+                    axes[0].set_title("Input Image")
+                    axes[1].imshow(true_a, cmap="Reds")
+                    axes[1].set_title("GT Chromosome A")
+                    axes[2].imshow(true_b, cmap="Blues")
+                    axes[2].set_title("GT Chromosome B")
+                    
+                    # Ensure Pred A aligns with True A visually for the chart
+                    if score_1 >= score_2:
+                        disp_a, disp_b = pred_a, pred_b
+                    else:
+                        disp_a, disp_b = pred_b, pred_a
+                        
+                    axes[3].imshow(disp_a, cmap="Reds")
+                    axes[3].set_title(f"Pred A (IoU={max(iou_a_1, iou_b_2)*100:.1f}%)")
+                    axes[4].imshow(disp_b, cmap="Blues")
+                    axes[4].set_title(f"Pred B (IoU={max(iou_b_1, iou_a_2)*100:.1f}%)")
+                    
+                    for ax in axes:
+                        ax.axis("off")
+                        
+                    status = "PASS" if best_score >= args.threshold else "FAIL"
+                    plt.suptitle(f"Sample {idx} - {status} (Score: {best_score*100:.1f}%)")
+                    plt.savefig(os.path.join(vis_dir, f"result_{idx:03d}.png"))
+                    plt.close()
+                except ImportError:
+                    pass
 
     accuracy = correct_count / total_count
     avg_iou = np.mean(iou_scores)

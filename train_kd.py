@@ -1,6 +1,7 @@
-﻿import os
+import os
 import argparse
 import time
+import csv
 from pathlib import Path
 import torch
 import torch.nn as nn
@@ -112,6 +113,33 @@ def train_kd():
         
         val_loss /= len(val_loader)
         print(f"Epoch {epoch+1} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
+
+        # --- CSV Logging ---
+        log_csv = os.path.join(args.output_dir, f"training_log_{args.role}.csv")
+        file_exists = os.path.isfile(log_csv)
+        with open(log_csv, "a", newline="") as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(["epoch", "train_loss", "val_loss"])
+            writer.writerow([epoch + 1, train_loss, val_loss])
+            
+        # --- Chart Generation ---
+        try:
+            import matplotlib.pyplot as plt
+            import pandas as pd
+            df = pd.read_csv(log_csv)
+            plt.figure(figsize=(10, 6))
+            plt.plot(df["epoch"], df["train_loss"], label="Train Loss")
+            plt.plot(df["epoch"], df["val_loss"], label="Val Loss")
+            plt.title(f"Training Progress ({args.role})")
+            plt.xlabel("Epoch")
+            plt.ylabel("Loss")
+            plt.legend()
+            plt.grid(True)
+            plt.savefig(os.path.join(args.output_dir, f"loss_chart_{args.role}.png"))
+            plt.close()
+        except ImportError:
+            pass
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
