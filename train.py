@@ -1,4 +1,4 @@
-﻿import os
+import os
 import argparse
 import time
 from pathlib import Path
@@ -57,7 +57,7 @@ def train():
         model.train()
         train_loss = 0.0
         
-        pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{args.epochs} [Train]")
+        pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{args.epochs} [Train]", mininterval=2.0, ncols=100)
         for imgs, masks in pbar:
             imgs, masks = imgs.to(device), masks.to(device)
             optimizer.zero_grad()
@@ -74,7 +74,7 @@ def train():
         model.eval()
         val_loss = 0.0
         with torch.no_grad():
-            for imgs, masks in tqdm(val_loader, desc=f"Epoch {epoch+1}/{args.epochs} [Val]"):
+            for imgs, masks in tqdm(val_loader, desc=f"Epoch {epoch+1}/{args.epochs} [Val]", leave=False, mininterval=2.0, ncols=100):
                 imgs, masks = imgs.to(device), masks.to(device)
                 preds = model(imgs)
                 loss = bipartite_loss(preds, masks)

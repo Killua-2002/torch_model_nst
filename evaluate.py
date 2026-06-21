@@ -1,4 +1,4 @@
-﻿import os
+import os
 import argparse
 from pathlib import Path
 import torch
@@ -37,7 +37,7 @@ def evaluate():
     dice_c_list = []
     
     with torch.no_grad():
-        for idx in tqdm(range(len(test_ds))):
+        for idx in tqdm(range(len(test_ds)), desc="Evaluating", mininterval=2.0, ncols=100):
             img_t, mask_t = test_ds[idx]
             img_t = img_t.unsqueeze(0).to(device)
             
