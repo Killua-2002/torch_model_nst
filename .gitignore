@@ -1,7 +1,6 @@
 __pycache__/
 *.py[cod]
 *$py.class
-dataset/
 source_data/
 generated_data/
 processed_data_256/
