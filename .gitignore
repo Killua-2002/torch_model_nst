@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*$py.class
+dataset/
+source_data/
+generated_data/
+processed_data_256/
+prepared_single_chromosomes/
+results_all_in_one/
+.ipynb_checkpoints/
