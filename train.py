@@ -7,6 +7,8 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+import csv
 
 from dataset import ChromosomeDataset
 from model import UNet
@@ -53,6 +55,9 @@ def train():
     os.makedirs(args.output_dir, exist_ok=True)
     
     best_val_loss = float("inf")
+    
+    history_train = []
+    history_val = []
 
     for epoch in range(args.epochs):
         model.train()
@@ -82,12 +87,36 @@ def train():
                 val_loss += loss.item()
         
         val_loss /= len(val_loader)
+        
+        history_train.append(train_loss)
+        history_val.append(val_loss)
+        
         print(f"Epoch {epoch+1} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             torch.save(model.state_dict(), os.path.join(args.output_dir, "best_model.pth"))
             print("  --> Saved new best model")
+
+    # Save history to CSV
+    csv_path = os.path.join(args.output_dir, "history.csv")
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["epoch", "train_loss", "val_loss"])
+        for i, (t, v) in enumerate(zip(history_train, history_val)):
+            writer.writerow([i+1, t, v])
+            
+    # Plot history
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(1, args.epochs + 1), history_train, label="Train Loss")
+    plt.plot(range(1, args.epochs + 1), history_val, label="Val Loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("Training and Validation Loss")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(os.path.join(args.output_dir, "loss_curve.png"))
+    plt.close()
 
 if __name__ == "__main__":
     train()
