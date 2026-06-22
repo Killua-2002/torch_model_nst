@@ -39,6 +39,7 @@ def train():
     parser.add_argument("--base-filters", type=int, default=32)
     parser.add_argument("--output-dir", type=str, default="results_all_in_one")
     parser.add_argument("--resume", action="store_true", help="Resume from latest checkpoint if available")
+    parser.add_argument("--patience", type=int, default=20, help="Number of epochs with no improvement after which training will be stopped")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -57,6 +58,7 @@ def train():
     
     best_val_loss = float("inf")
     start_epoch = 0
+    patience_counter = 0
     history_train = []
     history_val = []
 
@@ -68,9 +70,10 @@ def train():
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         start_epoch = checkpoint["epoch"] + 1
         best_val_loss = checkpoint.get("best_val_loss", float("inf"))
+        patience_counter = checkpoint.get("patience_counter", 0)
         history_train = checkpoint.get("history_train", [])
         history_val = checkpoint.get("history_val", [])
-        print(f"Resumed at epoch {start_epoch} with best_val_loss {best_val_loss:.4f}")
+        print(f"Resumed at epoch {start_epoch} with best_val_loss {best_val_loss:.4f} (Patience: {patience_counter}/{args.patience})")
 
     for epoch in range(start_epoch, args.epochs):
         model.train()
@@ -108,8 +111,12 @@ def train():
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
+            patience_counter = 0
             torch.save(model.state_dict(), os.path.join(args.output_dir, "best_model.pth"))
             print("  --> Saved new best model")
+        else:
+            patience_counter += 1
+            print(f"  --> Early stopping patience: {patience_counter}/{args.patience}")
 
         # Save latest checkpoint
         torch.save({
@@ -117,9 +124,14 @@ def train():
             "model_state_dict": model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
             "best_val_loss": best_val_loss,
+            "patience_counter": patience_counter,
             "history_train": history_train,
             "history_val": history_val
         }, checkpoint_path)
+        
+        if patience_counter >= args.patience:
+            print(f"\\n[!] Early stopping triggered after {epoch+1} epochs because val_loss did not improve for {args.patience} consecutive epochs.")
+            break
 
     # Save history to CSV
     csv_path = os.path.join(args.output_dir, "history.csv")
