@@ -8,6 +8,7 @@ from tqdm import tqdm
 import json
 import matplotlib.pyplot as plt
 import csv
+import cv2
 
 from dataset import ChromosomeDataset
 from model import UNet
@@ -17,40 +18,58 @@ def compute_dice(pred, target):
     intersection = (pred * target).sum()
     return (2. * intersection + smooth) / (pred.sum() + target.sum() + smooth)
 
-def save_visualization(out_path, img_gray, gt_a, gt_b, gt_c, pr_a, pr_b, pr_c):
+def apply_mask_with_border(img_rgb, mask, color_rgb):
+    mask_bool = mask == 1
+    if not np.any(mask_bool):
+        return img_rgb
+        
+    colored_mask = np.zeros_like(img_rgb)
+    colored_mask[:] = color_rgb
+    
+    # 50% opacity fill
+    img_rgb[mask_bool] = (img_rgb[mask_bool] * 0.5 + colored_mask[mask_bool] * 0.5).astype(np.uint8)
+    
+    # 100% opacity border
+    contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(img_rgb, contours, -1, color_rgb, 1)
+    return img_rgb
+
+def save_visualization(out_path, img_gray, gt_a, gt_b, gt_c, pr_a, pr_b, pr_c, prob_a, prob_b, prob_c):
     if img_gray.max() <= 1.0:
         img_gray = (img_gray * 255).astype(np.uint8)
         
-    gt_rgb = np.zeros((*gt_a.shape, 3), dtype=np.uint8)
-    gt_rgb[gt_a == 1, 0] = 255
-    gt_rgb[gt_b == 1, 1] = 255
-    gt_rgb[gt_c == 1, 0] = 255
-    gt_rgb[gt_c == 1, 1] = 255
-    
-    pr_rgb = np.zeros((*pr_a.shape, 3), dtype=np.uint8)
-    pr_rgb[pr_a == 1, 0] = 255
-    pr_rgb[pr_b == 1, 1] = 255
-    pr_rgb[pr_c == 1, 0] = 255
-    pr_rgb[pr_c == 1, 1] = 255
-    
     img_rgb = np.stack([img_gray]*3, axis=-1)
-    overlay = (img_rgb * 0.5 + pr_rgb * 0.5).astype(np.uint8)
+    
+    # Overlay for Ground Truth
+    gt_overlay = img_rgb.copy()
+    gt_overlay = apply_mask_with_border(gt_overlay, gt_a, (255, 0, 0)) # A: Red
+    gt_overlay = apply_mask_with_border(gt_overlay, gt_b, (0, 255, 0)) # B: Green
+    gt_overlay = apply_mask_with_border(gt_overlay, gt_c, (255, 255, 0)) # C: Yellow
+    
+    # Overlay for Prediction
+    pr_overlay = img_rgb.copy()
+    pr_overlay = apply_mask_with_border(pr_overlay, pr_a, (255, 0, 0))
+    pr_overlay = apply_mask_with_border(pr_overlay, pr_b, (0, 255, 0))
+    pr_overlay = apply_mask_with_border(pr_overlay, pr_c, (255, 255, 0))
+    
+    # Probability Heatmap (Monochromatic Blues)
+    max_prob = np.max([prob_a, prob_b, prob_c], axis=0)
     
     fig, axes = plt.subplots(1, 4, figsize=(16, 4))
     axes[0].imshow(img_gray, cmap='gray')
     axes[0].set_title('Original')
     axes[0].axis('off')
     
-    axes[1].imshow(gt_rgb)
-    axes[1].set_title('Ground Truth')
+    axes[1].imshow(gt_overlay)
+    axes[1].set_title('Ground Truth Overlay')
     axes[1].axis('off')
     
-    axes[2].imshow(pr_rgb)
-    axes[2].set_title('Prediction')
+    axes[2].imshow(pr_overlay)
+    axes[2].set_title('Prediction Overlay')
     axes[2].axis('off')
     
-    axes[3].imshow(overlay)
-    axes[3].set_title('Overlay Heatmap')
+    im = axes[3].imshow(max_prob, cmap='Blues', vmin=0, vmax=1)
+    axes[3].set_title('Prob Heatmap (Blues)')
     axes[3].axis('off')
     
     plt.tight_layout()
@@ -105,9 +124,15 @@ def evaluate():
             if score1 >= score2:
                 pred_a = pred0
                 pred_b = pred1
+                prob_a = preds_prob[0]
+                prob_b = preds_prob[1]
             else:
                 pred_a = pred1
                 pred_b = pred0
+                prob_a = preds_prob[1]
+                prob_b = preds_prob[0]
+                
+            prob_c = preds_prob[2]
                 
             dice_a = compute_dice(pred_a, target_a)
             dice_b = compute_dice(pred_b, target_b)
@@ -121,7 +146,7 @@ def evaluate():
             if idx < 20:
                 img_gray = img_t[0, 0].cpu().numpy()
                 vis_path = Path(args.output_dir) / "visualizations" / f"showcase_{idx:03d}.png"
-                save_visualization(vis_path, img_gray, target_a, target_b, target_c, pred_a, pred_b, pred_c)
+                save_visualization(vis_path, img_gray, target_a, target_b, target_c, pred_a, pred_b, pred_c, prob_a, prob_b, prob_c)
 
     avg_dice_a = np.mean(dice_a_list)
     avg_dice_b = np.mean(dice_b_list)
