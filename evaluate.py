@@ -18,7 +18,7 @@ def compute_dice(pred, target):
     intersection = (pred * target).sum()
     return (2. * intersection + smooth) / (pred.sum() + target.sum() + smooth)
 
-def apply_mask_with_border(img_rgb, mask, color_rgb):
+def apply_mask_with_border(img_rgb, mask, color_rgb, fill_opacity=0.2):
     mask_bool = mask == 1
     if not np.any(mask_bool):
         return img_rgb
@@ -26,8 +26,8 @@ def apply_mask_with_border(img_rgb, mask, color_rgb):
     colored_mask = np.zeros_like(img_rgb)
     colored_mask[:] = color_rgb
     
-    # 50% opacity fill
-    img_rgb[mask_bool] = (img_rgb[mask_bool] * 0.5 + colored_mask[mask_bool] * 0.5).astype(np.uint8)
+    # 20% opacity fill
+    img_rgb[mask_bool] = (img_rgb[mask_bool] * (1 - fill_opacity) + colored_mask[mask_bool] * fill_opacity).astype(np.uint8)
     
     # 100% opacity border
     contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -40,37 +40,64 @@ def save_visualization(out_path, img_gray, gt_a, gt_b, gt_c, pr_a, pr_b, pr_c, p
         
     img_rgb = np.stack([img_gray]*3, axis=-1)
     
-    # Overlay for Ground Truth
-    gt_overlay = img_rgb.copy()
-    gt_overlay = apply_mask_with_border(gt_overlay, gt_a, (255, 0, 0)) # A: Red
-    gt_overlay = apply_mask_with_border(gt_overlay, gt_b, (0, 255, 0)) # B: Green
-    gt_overlay = apply_mask_with_border(gt_overlay, gt_c, (255, 255, 0)) # C: Yellow
+    # Deduce Top/Bottom
+    visible_mask = (img_gray > 0).astype(np.float32)
+    vis_if_a_top = np.clip(pr_a + np.maximum(0, pr_b - pr_c), 0, 1)
+    vis_if_b_top = np.clip(pr_b + np.maximum(0, pr_a - pr_c), 0, 1)
     
-    # Overlay for Prediction
+    if np.sum(np.abs(visible_mask - vis_if_a_top)) <= np.sum(np.abs(visible_mask - vis_if_b_top)):
+        vis_a = pr_a
+        vis_b = np.maximum(0, pr_b - pr_c)
+        lbl_a = "Vis A (Top - Intact)"
+        lbl_b = "Vis B (Bottom - Split)"
+    else:
+        vis_a = np.maximum(0, pr_a - pr_c)
+        vis_b = pr_b
+        lbl_a = "Vis A (Bottom - Split)"
+        lbl_b = "Vis B (Top - Intact)"
+        
     pr_overlay = img_rgb.copy()
-    pr_overlay = apply_mask_with_border(pr_overlay, pr_a, (255, 0, 0))
-    pr_overlay = apply_mask_with_border(pr_overlay, pr_b, (0, 255, 0))
-    pr_overlay = apply_mask_with_border(pr_overlay, pr_c, (255, 255, 0))
+    pr_overlay = apply_mask_with_border(pr_overlay, pr_a, (255, 0, 0), fill_opacity=0.2)
+    pr_overlay = apply_mask_with_border(pr_overlay, pr_b, (0, 255, 0), fill_opacity=0.2)
+    pr_overlay = apply_mask_with_border(pr_overlay, pr_c, (255, 255, 0), fill_opacity=0.2)
     
-    # Probability Heatmap (Monochromatic Blues)
     max_prob = np.max([prob_a, prob_b, prob_c], axis=0)
     
-    fig, axes = plt.subplots(1, 4, figsize=(16, 4))
-    axes[0].imshow(img_gray, cmap='gray')
-    axes[0].set_title('Original')
-    axes[0].axis('off')
+    fig, axes = plt.subplots(2, 4, figsize=(16, 8))
     
-    axes[1].imshow(gt_overlay)
-    axes[1].set_title('Ground Truth Overlay')
-    axes[1].axis('off')
+    # ROW 1: Before Recovery
+    axes[0, 0].imshow(img_gray, cmap='gray')
+    axes[0, 0].set_title('Original Input')
+    axes[0, 0].axis('off')
     
-    axes[2].imshow(pr_overlay)
-    axes[2].set_title('Prediction Overlay')
-    axes[2].axis('off')
+    axes[0, 1].imshow(vis_a, cmap='gray')
+    axes[0, 1].set_title(lbl_a)
+    axes[0, 1].axis('off')
     
-    im = axes[3].imshow(max_prob, cmap='Blues', vmin=0, vmax=1)
-    axes[3].set_title('Prob Heatmap (Blues)')
-    axes[3].axis('off')
+    axes[0, 2].imshow(vis_b, cmap='gray')
+    axes[0, 2].set_title(lbl_b)
+    axes[0, 2].axis('off')
+    
+    axes[0, 3].imshow(pr_c, cmap='gray')
+    axes[0, 3].set_title('Overlap C')
+    axes[0, 3].axis('off')
+    
+    # ROW 2: After Recovery
+    axes[1, 0].imshow(pr_a, cmap='gray')
+    axes[1, 0].set_title('Full Pred A')
+    axes[1, 0].axis('off')
+    
+    axes[1, 1].imshow(pr_b, cmap='gray')
+    axes[1, 1].set_title('Full Pred B')
+    axes[1, 1].axis('off')
+    
+    axes[1, 2].imshow(pr_overlay)
+    axes[1, 2].set_title('Overlay (20% Opacity)')
+    axes[1, 2].axis('off')
+    
+    im = axes[1, 3].imshow(max_prob, cmap='Blues', vmin=0, vmax=1)
+    axes[1, 3].set_title('Prob Heatmap (Blues)')
+    axes[1, 3].axis('off')
     
     plt.tight_layout()
     plt.savefig(out_path)
@@ -95,6 +122,7 @@ def evaluate():
     model.eval()
 
     os.makedirs(Path(args.output_dir) / "visualizations", exist_ok=True)
+    os.makedirs(Path(args.output_dir) / "predictions", exist_ok=True)
 
     dice_a_list = []
     dice_b_list = []
@@ -142,9 +170,18 @@ def evaluate():
             dice_b_list.append(dice_b)
             dice_c_list.append(dice_c)
             
-            img_gray = img_t[0, 0].cpu().numpy()
-            vis_path = Path(args.output_dir) / "visualizations" / f"showcase_{idx:05d}.png"
-            save_visualization(vis_path, img_gray, target_a, target_b, target_c, pred_a, pred_b, pred_c, prob_a, prob_b, prob_c)
+            # Save raw masks for ALL samples
+            raw_pred_dir = Path(args.output_dir) / "predictions" / f"sample_{idx:05d}"
+            os.makedirs(raw_pred_dir, exist_ok=True)
+            Image.fromarray((pred_a * 255).astype(np.uint8)).save(raw_pred_dir / "pred_a.png")
+            Image.fromarray((pred_b * 255).astype(np.uint8)).save(raw_pred_dir / "pred_b.png")
+            Image.fromarray((pred_c * 255).astype(np.uint8)).save(raw_pred_dir / "pred_c.png")
+            
+            # Save visualizations for the first 30 samples
+            if idx < 30:
+                img_gray = img_t[0, 0].cpu().numpy()
+                vis_path = Path(args.output_dir) / "visualizations" / f"showcase_{idx:05d}.png"
+                save_visualization(vis_path, img_gray, target_a, target_b, target_c, pred_a, pred_b, pred_c, prob_a, prob_b, prob_c)
 
     avg_dice_a = np.mean(dice_a_list)
     avg_dice_b = np.mean(dice_b_list)
