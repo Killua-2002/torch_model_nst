@@ -65,12 +65,12 @@ def save_visualization(out_path, img_gray, gt_a, gt_b, gt_c, pr_a, pr_b, pr_c, p
     
     fig, axes = plt.subplots(2, 4, figsize=(16, 8))
     
-    # Apply texture
-    vis_a_disp = img_gray * vis_a
-    vis_b_disp = img_gray * vis_b
-    pr_c_disp = img_gray * pr_c
-    pr_a_disp = img_gray * pr_a
-    pr_b_disp = img_gray * pr_b
+    # Apply texture with white background
+    vis_a_disp = np.where(vis_a == 1, img_gray, 255).astype(np.uint8)
+    vis_b_disp = np.where(vis_b == 1, img_gray, 255).astype(np.uint8)
+    pr_c_disp = np.where(pr_c == 1, img_gray, 255).astype(np.uint8)
+    pr_a_disp = np.where(pr_a == 1, img_gray, 255).astype(np.uint8)
+    pr_b_disp = np.where(pr_b == 1, img_gray, 255).astype(np.uint8)
     
     # ROW 1: Before Recovery
     axes[0, 0].imshow(img_gray, cmap='gray')
