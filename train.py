@@ -143,8 +143,9 @@ def train():
             
     # Plot history
     plt.figure(figsize=(10, 6))
-    plt.plot(range(1, args.epochs + 1), history_train, label="Train Loss")
-    plt.plot(range(1, args.epochs + 1), history_val, label="Val Loss")
+    epochs_range = range(1, len(history_train) + 1)
+    plt.plot(epochs_range, history_train, label="Train Loss")
+    plt.plot(epochs_range, history_val, label="Val Loss")
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
     plt.title("Training and Validation Loss")
