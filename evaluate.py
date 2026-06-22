@@ -57,9 +57,9 @@ def save_visualization(out_path, img_gray, gt_a, gt_b, gt_c, pr_a, pr_b, pr_c, p
         lbl_b = "Vis B (Top - Intact)"
         
     pr_overlay = img_rgb.copy()
-    pr_overlay = apply_mask_with_border(pr_overlay, pr_a, (255, 0, 0), fill_opacity=0.2)
-    pr_overlay = apply_mask_with_border(pr_overlay, pr_b, (0, 255, 0), fill_opacity=0.2)
-    pr_overlay = apply_mask_with_border(pr_overlay, pr_c, (255, 255, 0), fill_opacity=0.2)
+    pr_overlay = apply_mask_with_border(pr_overlay, pr_a, (255, 0, 0), fill_opacity=0.1)
+    pr_overlay = apply_mask_with_border(pr_overlay, pr_b, (0, 255, 0), fill_opacity=0.1)
+    pr_overlay = apply_mask_with_border(pr_overlay, pr_c, (255, 255, 0), fill_opacity=0.1)
     
     max_prob = np.max([prob_a, prob_b, prob_c], axis=0)
     
