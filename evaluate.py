@@ -65,29 +65,36 @@ def save_visualization(out_path, img_gray, gt_a, gt_b, gt_c, pr_a, pr_b, pr_c, p
     
     fig, axes = plt.subplots(2, 4, figsize=(16, 8))
     
+    # Apply texture
+    vis_a_disp = img_gray * vis_a
+    vis_b_disp = img_gray * vis_b
+    pr_c_disp = img_gray * pr_c
+    pr_a_disp = img_gray * pr_a
+    pr_b_disp = img_gray * pr_b
+    
     # ROW 1: Before Recovery
     axes[0, 0].imshow(img_gray, cmap='gray')
     axes[0, 0].set_title('Original Input')
     axes[0, 0].axis('off')
     
-    axes[0, 1].imshow(vis_a, cmap='gray')
+    axes[0, 1].imshow(vis_a_disp, cmap='gray')
     axes[0, 1].set_title(lbl_a)
     axes[0, 1].axis('off')
     
-    axes[0, 2].imshow(vis_b, cmap='gray')
+    axes[0, 2].imshow(vis_b_disp, cmap='gray')
     axes[0, 2].set_title(lbl_b)
     axes[0, 2].axis('off')
     
-    axes[0, 3].imshow(pr_c, cmap='gray')
+    axes[0, 3].imshow(pr_c_disp, cmap='gray')
     axes[0, 3].set_title('Overlap C')
     axes[0, 3].axis('off')
     
     # ROW 2: After Recovery
-    axes[1, 0].imshow(pr_a, cmap='gray')
+    axes[1, 0].imshow(pr_a_disp, cmap='gray')
     axes[1, 0].set_title('Full Pred A')
     axes[1, 0].axis('off')
     
-    axes[1, 1].imshow(pr_b, cmap='gray')
+    axes[1, 1].imshow(pr_b_disp, cmap='gray')
     axes[1, 1].set_title('Full Pred B')
     axes[1, 1].axis('off')
     
