@@ -38,6 +38,7 @@ def train():
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--base-filters", type=int, default=32)
     parser.add_argument("--output-dir", type=str, default="results_all_in_one")
+    parser.add_argument("--resume", action="store_true", help="Resume from latest checkpoint if available")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -55,11 +56,23 @@ def train():
     os.makedirs(args.output_dir, exist_ok=True)
     
     best_val_loss = float("inf")
-    
+    start_epoch = 0
     history_train = []
     history_val = []
 
-    for epoch in range(args.epochs):
+    checkpoint_path = os.path.join(args.output_dir, "latest_checkpoint.pth")
+    if args.resume and os.path.exists(checkpoint_path):
+        print(f"Resuming from checkpoint: {checkpoint_path}")
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        start_epoch = checkpoint["epoch"] + 1
+        best_val_loss = checkpoint.get("best_val_loss", float("inf"))
+        history_train = checkpoint.get("history_train", [])
+        history_val = checkpoint.get("history_val", [])
+        print(f"Resumed at epoch {start_epoch} with best_val_loss {best_val_loss:.4f}")
+
+    for epoch in range(start_epoch, args.epochs):
         model.train()
         train_loss = 0.0
         
@@ -97,6 +110,16 @@ def train():
             best_val_loss = val_loss
             torch.save(model.state_dict(), os.path.join(args.output_dir, "best_model.pth"))
             print("  --> Saved new best model")
+
+        # Save latest checkpoint
+        torch.save({
+            "epoch": epoch,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "best_val_loss": best_val_loss,
+            "history_train": history_train,
+            "history_val": history_val
+        }, checkpoint_path)
 
     # Save history to CSV
     csv_path = os.path.join(args.output_dir, "history.csv")

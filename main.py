@@ -116,7 +116,8 @@ def main():
             "--epochs", str(EPOCHS),
             "--batch-size", str(BATCH_SIZE),
             "--base-filters", str(BASE_FILTERS),
-            "--lr", str(LR)
+            "--lr", str(LR),
+            "--resume"
         ], "Step 5: Train all-in-one model")
 
     if RUN_EVALUATE:
