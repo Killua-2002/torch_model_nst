@@ -142,11 +142,9 @@ def evaluate():
             dice_b_list.append(dice_b)
             dice_c_list.append(dice_c)
             
-            # Save visualizations for the first 20 samples
-            if idx < 20:
-                img_gray = img_t[0, 0].cpu().numpy()
-                vis_path = Path(args.output_dir) / "visualizations" / f"showcase_{idx:03d}.png"
-                save_visualization(vis_path, img_gray, target_a, target_b, target_c, pred_a, pred_b, pred_c, prob_a, prob_b, prob_c)
+            img_gray = img_t[0, 0].cpu().numpy()
+            vis_path = Path(args.output_dir) / "visualizations" / f"showcase_{idx:05d}.png"
+            save_visualization(vis_path, img_gray, target_a, target_b, target_c, pred_a, pred_b, pred_c, prob_a, prob_b, prob_c)
 
     avg_dice_a = np.mean(dice_a_list)
     avg_dice_b = np.mean(dice_b_list)
