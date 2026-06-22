@@ -9,6 +9,7 @@ import json
 import matplotlib.pyplot as plt
 import csv
 import cv2
+import shutil
 
 from dataset import ChromosomeDataset
 from model import UNet
@@ -128,8 +129,17 @@ def evaluate():
     model.load_state_dict(torch.load(args.weights, map_location=device))
     model.eval()
 
-    os.makedirs(Path(args.output_dir) / "visualizations", exist_ok=True)
-    os.makedirs(Path(args.output_dir) / "predictions", exist_ok=True)
+    vis_dir = Path(args.output_dir) / "visualizations"
+    pred_dir = Path(args.output_dir) / "predictions"
+    
+    # Delete old outputs to save drive space
+    if vis_dir.exists():
+        shutil.rmtree(vis_dir)
+    if pred_dir.exists():
+        shutil.rmtree(pred_dir)
+
+    os.makedirs(vis_dir, exist_ok=True)
+    os.makedirs(pred_dir, exist_ok=True)
 
     dice_a_list = []
     dice_b_list = []
